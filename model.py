@@ -70,10 +70,10 @@ class DMN:
 
     def _build_input_module(self):
         with tf.variable_scope("input-module"):
-            self.input_encoder_outputs, _ = self._build_encoder("input_sentences", "input_sequence_length")
+            self.input_encoder_outputs, _ = self._build_encoder("input_sentences", "input_sequences_length")
 
         with tf.variable_scope("input-module", reuse=True):
-            self.question_encoder_outputs, _ = self._build_encoder("question_sentences", "question_sequence_length")
+            self.question_encoder_outputs, _ = self._build_encoder("question_sentence", "question_sequence_length")
 
     def _build_encoder(self, input_data, input_sequence):
         cells = model_helper.create_rnn_cells(
@@ -87,10 +87,13 @@ class DMN:
                 input_sequence, self.dtype)
 
     def _build_episodic_memory(self):
+        # nested recurrent neural networks
+        # memory = GRU(e^i, m^i-1), m^0 = q
+        # episode => g^i_t GRU(ct, h^i_t-1) + (1 - g^i_t) h^i_t-1
         pass
 
     def _build_attention_function(self):
-        pass
+        # gate : G(c_t, m^i-1, q), 2-layer feed forward network layer
 
     def _build_answer_decoder(self):
         pass
