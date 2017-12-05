@@ -90,10 +90,17 @@ class DMN:
         # nested recurrent neural networks
         # memory = GRU(e^i, m^i-1), m^0 = q
         # episode => g^i_t GRU(ct, h^i_t-1) + (1 - g^i_t) h^i_t-1
-        pass
+        with tf.variable_scope('episodic') as scope:
+            memory = tf.identity(q)
 
-    def _build_attention_function(self):
-        # gate : G(c_t, m^i-1, q), 2-layer feed forward network layer
+            episode = Episode()
+
+            rnn = model_helper.rnn_single_cell(Config.model.cell_type, Config.model.dropout, Config.model.num_units)
+
+            for _ in range(Config.model.memory_hob):
+                memory, _ rnn(episode.update(c, memeory, q), memory)
+            self.last_memory = memory
+
 
     def _build_answer_decoder(self):
         pass
@@ -114,3 +121,38 @@ class DMN:
             learning_rate=Config.train.learning_rate,
             summaries=['loss', 'learning_rate'],
             name="train_op")
+
+
+class Episode:
+
+    def __init__(self):
+        self.gate = AttentionGate()
+        self.rnn = model_helper.rnn_single_cell(Config.model.cell_type, Config.model.dropout, Config.model.num_units)
+
+    def update(self, c, m, q):
+        h = tf.zero_likes(shape)
+
+        for c, c_t in zip(c, tf.transpose(c)):
+            g = self.gate.score(c_t, m, q)
+            h = g * self.rnn(c, h) + (1 - g) * h
+        return h
+
+
+class AttentionGate:
+    # gate : G(c_t, m^i-1, q), 2-layer feed forward network layer
+
+    def __init__(self):
+        self.w1 = tf.Variable()
+        self.b1 = tf.Variable()
+        self.w2 = tf.Variable()
+        self.b2 = tf.Variable()
+
+    def score(c, m, q):
+        with tf.variable_scope('attention_gate'):
+            # for captures a variety of similarities between input(c), memory(m) and question(q)
+            z = tf.concat([c, m, q, c*q, c*m, (c-q)**2, (c-m)**2, 0])
+
+            tanh( self.w1 * z + self.b1 )
+            o1 = tf.nn.tanh(tf.matmul(self.w1, z) + self.b1)
+            o2 = tf.nn.sigmoid(tf.matmul(self.w2, o1) + self.b2)
+            return o2
