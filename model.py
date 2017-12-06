@@ -23,6 +23,9 @@ class DMN:
         self._init_placeholder(features, labels)
         self.build_graph()
 
+        # for pre-trained embedding (scaffold = object that can be used to set initialization, saver, and more to be used in training.)
+        # tf.estimator.EstimatorSpec(..., scaffold=tf.train.Scaffold(init_feed_dict={embed_ph: my_embedding_numpy_array}
+
         if self.mode == tf.estimator.ModeKeys.PREDICT:
             return tf.estimator.EstimatorSpec(
                 mode=mode,
@@ -70,40 +73,33 @@ class DMN:
 
     def _build_input_module(self):
         with tf.variable_scope("input-module"):
-            self.input_encoder_outputs, _ = self._build_encoder("input_sentences", "input_sequences_length")
+            self.input_encoder_outputs, _ = model_helper.Encoder(input_vector=None, sequence_length=None)
+            # ... gather
+            self.facts = None
 
         with tf.variable_scope("input-module", reuse=True):
-            self.question_encoder_outputs, _ = self._build_encoder("question_sentence", "question_sequence_length")
-
-    def _build_encoder(self, input_data, input_sequence):
-        cells = model_helper.create_rnn_cells(
-                cell_type=Config.model.cell_type,
-                dropout=Config.model.dropout,
-                num_units=Config.model.num_units,
-                num_layers=Config.model.num_layers)
-
-        return model_helper.create_unidirectional_rnn(
-                cells, input_data,
-                input_sequence, self.dtype)
+            question_encoder_outputs, _ = model_helper.Encoder(input_vector=None, sequence_length=None)
+            self.question = question_encoder_outputs[-1]
 
     def _build_episodic_memory(self):
         # nested recurrent neural networks
-        # memory = GRU(e^i, m^i-1), m^0 = q
-        # episode => g^i_t GRU(ct, h^i_t-1) + (1 - g^i_t) h^i_t-1
         with tf.variable_scope('episodic') as scope:
-            memory = tf.identity(q)
+            memory = tf.identity(self.question)
 
-            episode = Episode()
-
+            episode = model_helper.Episode()
             rnn = model_helper.rnn_single_cell(Config.model.cell_type, Config.model.dropout, Config.model.num_units)
 
             for _ in range(Config.model.memory_hob):
-                memory, _ rnn(episode.update(c, memeory, q), memory)
+                memory, _  = rnn(episode.update(self.facts, memeory, self.question), memory)
             self.last_memory = memory
 
 
     def _build_answer_decoder(self):
-        pass
+        w_a = tf.Variable()
+        a = tf.identity(self.last_memory)
+
+        y = softmax(tf.matmul(w_a, a))
+        a = gru(tf.concat([y, self.question], 0), a)
 
     def _build_loss(self):
         self.loss = tf.losses.softmax_cross_entropy(
@@ -119,40 +115,5 @@ class DMN:
             self.loss, tf.train.get_global_step(),
             optimizer='Adam',
             learning_rate=Config.train.learning_rate,
-            summaries=['loss', 'learning_rate'],
+            summaries=['loss'],
             name="train_op")
-
-
-class Episode:
-
-    def __init__(self):
-        self.gate = AttentionGate()
-        self.rnn = model_helper.rnn_single_cell(Config.model.cell_type, Config.model.dropout, Config.model.num_units)
-
-    def update(self, c, m, q):
-        h = tf.zero_likes(shape)
-
-        for c, c_t in zip(c, tf.transpose(c)):
-            g = self.gate.score(c_t, m, q)
-            h = g * self.rnn(c, h) + (1 - g) * h
-        return h
-
-
-class AttentionGate:
-    # gate : G(c_t, m^i-1, q), 2-layer feed forward network layer
-
-    def __init__(self):
-        self.w1 = tf.Variable()
-        self.b1 = tf.Variable()
-        self.w2 = tf.Variable()
-        self.b2 = tf.Variable()
-
-    def score(c, m, q):
-        with tf.variable_scope('attention_gate'):
-            # for captures a variety of similarities between input(c), memory(m) and question(q)
-            z = tf.concat([c, m, q, c*q, c*m, (c-q)**2, (c-m)**2, 0])
-
-            tanh( self.w1 * z + self.b1 )
-            o1 = tf.nn.tanh(tf.matmul(self.w1, z) + self.b1)
-            o2 = tf.nn.sigmoid(tf.matmul(self.w2, o1) + self.b2)
-            return o2
