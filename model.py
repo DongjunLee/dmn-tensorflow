@@ -5,7 +5,8 @@ from hbconfig import Config
 import tensorflow as tf
 from tensorflow.contrib import layers
 
-from . import model_helper
+from model_helper import Encoder
+from model_helper import Episode
 
 
 
@@ -22,9 +23,6 @@ class DMN:
 
         self._init_placeholder(features, labels)
         self.build_graph()
-
-        # for pre-trained embedding (scaffold = object that can be used to set initialization, saver, and more to be used in training.)
-        # tf.estimator.EstimatorSpec(..., scaffold=tf.train.Scaffold(init_feed_dict={embed_ph: my_embedding_numpy_array}
 
         if self.mode == tf.estimator.ModeKeys.PREDICT:
             return tf.estimator.EstimatorSpec(
@@ -45,70 +43,103 @@ class DMN:
     def _init_placeholder(self, features, labels):
         self.input_data = features
         if type(features) == dict:
-            self.input_data = features["input_data"]
-            self.question_data = features["question_data"]
+            self.embedding_input = features["input_data"]
+
+            self.input_mask = features["input_data_mask"]
+            self.input_length = tf.reduce_max(self.input_mask, 1)
+            self.embedding_question = features["question_data"]
+            self.question_length = tf.map_fn(lambda x: tf.shape(x)[0],
+                                             self.embedding_question,
+                                             dtype=tf.int32)
+            print("embedding_question:", self.embedding_question)
 
         self.targets = labels
 
     def build_graph(self):
-        self._build_semantic_memory()
         self._build_input_module()
         self._build_episodic_memory()
-        self._build_attention_function()
         self._build_answer_decoder()
 
         if self.mode != tf.estimator.ModeKeys.PREDICT:
             self._build_loss()
             self._build_optimizer()
 
-    def _build_semantic_memory(self):
-        with tf.variable_scope("embeddings", dtype=self.dtype) as scope:
-            self.embedding = tf.get_variable(
-                    "embedding",
-                    [Config.data.vocab_size, Config.model.embed_dim],
-                    self.dtype)
-
-            self.embedding_input = tf.nn.embedding_lookup(
-                self.embedding, self.input_data)
-
     def _build_input_module(self):
-        with tf.variable_scope("input-module"):
-            self.input_encoder_outputs, _ = model_helper.Encoder(input_vector=None, sequence_length=None)
-            # ... gather
-            self.facts = None
+        with tf.variable_scope("input-module") as scope:
+            print("input embedding:", self.embedding_input)
+            self.input_encoder_outputs, _ = self._build_encoder(self.embedding_input, self.input_length)
+            print("input encoding: ", self.input_encoder_outputs)
 
-        with tf.variable_scope("input-module", reuse=True):
-            question_encoder_outputs, _ = model_helper.Encoder(input_vector=None, sequence_length=None)
-            self.question = question_encoder_outputs[-1]
+            self.facts = []
+            max_mask_length = tf.shape(self.input_mask)[1]
+            for i in range(Config.train.batch_size):
+                input_mask = tf.identity(self.input_mask[i])
+                mask_lengths = tf.reduce_sum(tf.to_int32(tf.not_equal(input_mask, Config.data.PAD_ID)), 0)
+                input_mask = tf.boolean_mask(input_mask, tf.sequence_mask(mask_lengths, max_mask_length))
+                input_mask = tf.reshape(input_mask, [-1, 1])
+
+                padding = tf.zeros(tf.stack([max_mask_length - mask_lengths, Config.model.num_units]))
+                self.facts.append(tf.concat([tf.gather_nd(self.input_encoder_outputs[i], input_mask), padding], 0))
+
+            facts_packed = tf.stack(self.facts)
+            self.facts = tf.unstack(tf.transpose(facts_packed, [1, 0, 2]), num=Config.data.max_input_mask_length)
+            print("facts:", self.facts)
+
+            scope.reuse_variables()
+
+            print("question embedding:", self.embedding_question)
+            _, self.question = self._build_encoder(self.embedding_question, self.question_length)
+            self.question = self.question[0]
+            print("question encoding: ", self.question)
+
+    def _build_encoder(self, input_vector, sequence_length):
+        return Encoder(
+                    encoder_type=Config.model.encoder_type,
+                    num_layers=Config.model.num_layers,
+                    input_vector=input_vector,
+                    sequence_length=sequence_length,
+                    cell_type=Config.model.cell_type,
+                    num_units=Config.model.num_units,
+                    dropout=Config.model.dropout).build()
 
     def _build_episodic_memory(self):
-        # nested recurrent neural networks
-        with tf.variable_scope('episodic') as scope:
+        with tf.variable_scope('episodic-memory-module') as scope:
             memory = tf.identity(self.question)
+            print("m0:", memory)
 
-            episode = model_helper.Episode()
-            rnn = model_helper.rnn_single_cell(Config.model.cell_type, Config.model.dropout, Config.model.num_units)
+            episode = Episode(Config.model.num_units)
+
+            rnn = tf.contrib.rnn.GRUCell(Config.model.num_units)
 
             for _ in range(Config.model.memory_hob):
-                memory, _  = rnn(episode.update(self.facts, memeory, self.question), memory)
+                updated_memory = episode.update(self.facts, tf.transpose(memory), tf.transpose(self.question))
+                print("updated_memory:", updated_memory, memory)
+                memory, _ = rnn(updated_memory, memory, scope="memory_rnn")
             self.last_memory = memory
 
 
     def _build_answer_decoder(self):
-        w_a = tf.Variable()
-        a = tf.identity(self.last_memory)
+        with tf.variable_scope('answer-module') as scope:
+            w_a = tf.get_variable("w_a", [Config.model.num_units, Config.data.vocab_size])
+            self.logits = tf.matmul(self.last_memory, w_a)
+            print("logits:", self.logits)
 
-        y = softmax(tf.matmul(w_a, a))
-        a = gru(tf.concat([y, self.question], 0), a)
+
+        # a = tf.identity(self.last_memory)
+
+        # rnn = tf.contrib.rnn.GRUCell(Config.model.num_units)
+
+        # y = tf.nn.softmax(tf.matmul(w_a, a))
+        # a = rnn(tf.concat([y, self.question], 0), a)
 
     def _build_loss(self):
-        self.loss = tf.losses.softmax_cross_entropy(
+        self.loss = tf.losses.sparse_softmax_cross_entropy(
                 self.targets,
-                self.output,
+                self.logits,
                 scope="loss")
 
-        self.train_pred = tf.argmax(self.output[0], name='train/pred_0')
-        self.predictions = tf.argmax(self.output, axis=1)
+        self.train_pred = tf.argmax(self.logits[0], name='train/pred_0')
+        self.predictions = tf.argmax(self.logits, axis=1)
 
     def _build_optimizer(self):
         self.train_op = layers.optimize_loss(

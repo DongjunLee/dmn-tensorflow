@@ -2,29 +2,39 @@
 from hbconfig import Config
 import tensorflow as tf
 
-import data_loader
+from data_loader import DataLoader
 import dataset
-from model import TextCNN
+from model import DMN
 import hook
 
 
 
 def experiment_fn(run_config, params):
 
-    text_cnn = TextCNN()
+    dmn_model = DMN()
     estimator = tf.estimator.Estimator(
-            model_fn=text_cnn.model_fn,
+            model_fn=dmn_model.model_fn,
             model_dir=Config.train.model_dir,
             params=params,
             config=run_config)
 
-    vocab = data_loader.load_vocab("vocab")
+    data_loader = DataLoader(
+            task_id=Config.data.task_id,
+            task_test_id=Config.data.task_id,
+            w2v_dim=Config.model.embed_dim,
+            use_pretrained=Config.model.use_pretrained)
+
+    data = data_loader.make_train_and_test_set()
+
+    vocab = data_loader.vocab
+
     Config.data.vocab_size = len(vocab)
+    Config.data.max_facts_seq_len = data_loader.max_facts_seq_len
+    Config.data.max_question_seq_len = data_loader.max_question_seq_len
+    Config.data.max_input_mask_length = data_loader.max_input_mask_len
 
-    train_X, test_X, train_y, test_y = data_loader.make_train_and_test_set()
-
-    train_input_fn, train_input_hook = dataset.get_train_inputs(train_X, train_y)
-    test_input_fn, test_input_hook = dataset.get_test_inputs(test_X, test_y)
+    train_input_fn, train_input_hook = dataset.get_train_inputs(data["train"])
+    test_input_fn, test_input_hook = dataset.get_test_inputs(data["test"])
 
     experiment = tf.contrib.learn.Experiment(
         estimator=estimator,
@@ -33,14 +43,7 @@ def experiment_fn(run_config, params):
         train_steps=Config.train.train_steps,
         min_eval_frequency=Config.train.min_eval_frequency,
         train_monitors=[
-            train_input_hook,
-            hook.print_input(
-                variables=['train/input_0'],
-                vocab=vocab,
-                every_n_iter=Config.train.check_hook_n_iter),
-            hook.print_target(
-                variables=['train/target_0', 'train/pred_0'],
-                every_n_iter=Config.train.check_hook_n_iter)],
+            train_input_hook],
         eval_hooks=[test_input_hook]
     )
     return experiment
