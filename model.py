@@ -22,7 +22,6 @@ class DMN:
         self.params = params
 
         self._set_batch_size(mode)
-
         self._init_placeholder(features, labels)
         self.build_graph()
 
@@ -33,7 +32,7 @@ class DMN:
         else:
             return tf.estimator.EstimatorSpec(
                 mode=mode,
-                predictions=self.train_pred,
+                predictions=self.predictions,
                 loss=self.loss,
                 train_op=self.train_op,
                 eval_metric_ops={
@@ -77,18 +76,19 @@ class DMN:
             self.input_encoder_outputs, _ = encoder.build(
                     self.embedding_input, self.input_length, scope="encoder")
 
-            self.facts = []
-            max_mask_length = tf.shape(self.input_mask)[1]
-            for i in range(Config.model.batch_size):
-                mask_lengths = tf.reduce_sum(tf.to_int32(tf.not_equal(self.input_mask[i], Config.data.PAD_ID)), 0)
-                input_mask = tf.boolean_mask(self.input_mask[i], tf.sequence_mask(mask_lengths, max_mask_length))
+            with tf.variable_scope("facts") as scope:
+                self.facts = []
+                max_mask_length = tf.shape(self.input_mask)[1]
+                for i in range(Config.model.batch_size):
+                    mask_lengths = tf.reduce_sum(tf.to_int32(tf.not_equal(self.input_mask[i], Config.data.PAD_ID)), 0)
+                    input_mask = tf.boolean_mask(self.input_mask[i], tf.sequence_mask(mask_lengths, max_mask_length))
 
-                padding = tf.zeros(tf.stack([max_mask_length - mask_lengths, Config.model.num_units]))
-                self.facts.append(tf.concat(
-                    [tf.gather_nd(self.input_encoder_outputs[i], tf.reshape(input_mask, [-1, 1])), padding], 0))
+                    padding = tf.zeros(tf.stack([max_mask_length - mask_lengths, Config.model.num_units]))
+                    self.facts.append(tf.concat(
+                        [tf.gather_nd(self.input_encoder_outputs[i], tf.reshape(input_mask, [-1, 1])), padding], 0))
 
-            facts_stacked = tf.stack(self.facts)
-            self.facts = tf.unstack(tf.transpose(facts_stacked, [1, 0, 2]), num=Config.data.max_input_mask_length)
+                facts_stacked = tf.stack(self.facts)
+                self.facts = tf.unstack(tf.transpose(facts_stacked, [1, 0, 2]), num=Config.data.max_input_mask_length)
 
         with tf.variable_scope("input-module") as scope:
             scope.reuse_variables()
@@ -131,7 +131,6 @@ class DMN:
                 self.logits,
                 scope="loss")
 
-        self.train_pred = tf.argmax(self.logits[0], name='train/pred_0')
         self.predictions = tf.argmax(self.logits, axis=1)
 
     def _build_optimizer(self):
