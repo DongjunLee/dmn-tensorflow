@@ -8,13 +8,13 @@ model:
   embed_dim: 8
   encoder_type: UNI
   cell_type: GRU
-  num_layers: 1
-  num_units: 4
-  memory_hob: 1
+  num_layers: 2
+  num_units: 16
+  memory_hob: 2
   dropout: 0.5
 
 train:
-  batch_size: 1
+  batch_size: 2
   learning_rate: 0.001
   train_steps: 10000
   model_dir: 'logs/check_tiny'
