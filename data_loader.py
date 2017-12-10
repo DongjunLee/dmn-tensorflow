@@ -11,8 +11,9 @@ from tqdm import tqdm
 
 class DataLoader:
 
-    def __init__(self, task_id, task_test_id, w2v_dim=100, input_mask_mode="sentence", use_pretrained=True):
-        self.base_path = os.path.join("data/")
+    def __init__(self, task_path, task_id, task_test_id, w2v_dim=100, input_mask_mode="sentence", use_pretrained=True):
+        self.base_path = "data/"
+        self.task_path = task_path
 
         self.task_id = str(task_id)
         self.task_test_id = str(task_test_id)
@@ -128,17 +129,17 @@ class DataLoader:
             test_id = id
         babi_name = babi_map[id]
         babi_test_name = babi_map[test_id]
-        babi_train_raw = self.init_babi(os.path.join(self.base_path, 'en-10/%s_train.txt' % babi_name))
-        babi_test_raw = self.init_babi(os.path.join(self.base_path, 'en-10/%s_test.txt' % babi_test_name))
+        babi_train_raw = self.init_babi(os.path.join(self.base_path, self.task_path, '%s_train.txt' % babi_name))
+        babi_test_raw = self.init_babi(os.path.join(self.base_path, self.task_path, '%s_test.txt' % babi_test_name))
         return babi_train_raw, babi_test_raw
 
     def load_glove(self, dim):
         word2vec = {}
 
         print("==> loading glove")
-        with open(os.path.join(self.base_path, "glove/glove.6B." + str(dim) + "d.txt")) as f:
+        with open(os.path.join(self.base_path, "glove/glove.6B." + str(dim) + "d.txt"), 'rb') as f:
             for line in tqdm(f):
-                l = line.split()
+                l = line.decode('utf-8').split()
                 word2vec[l[0]] = l[1:]
 
         print("==> glove is loaded")

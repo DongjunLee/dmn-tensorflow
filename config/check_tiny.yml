@@ -1,5 +1,6 @@
 data:
   base_path: 'data/'
+  task_path: 'en-10/'
   task_id: 1
   PAD_ID: 0
 
@@ -21,3 +22,6 @@ train:
   save_checkpoints_steps: 1000
   check_hook_n_iter: 10
   min_eval_frequency: 10
+
+eval:
+  batch_size: -1
