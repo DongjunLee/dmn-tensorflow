@@ -1,0 +1,27 @@
+data:
+  base_path: 'data/'
+  task_path: 'en/'
+  task_id: 1
+  PAD_ID: 0
+
+model:
+  use_pretrained: true
+  embed_dim: 200
+  encoder_type: UNI
+  cell_type: GRU
+  num_layers: 3
+  num_units: 256
+  memory_hob: 3
+  dropout: 0.8
+
+train:
+  batch_size: 128
+  learning_rate: 0.00001
+  train_steps: 100000
+  model_dir: 'logs/bAbi_task1'
+  save_checkpoints_steps: 1000
+  check_hook_n_iter: 1000
+  min_eval_frequency: 1000
+
+eval:
+  batch_size: -1
