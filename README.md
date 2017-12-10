@@ -23,6 +23,7 @@ Dynamic Memory Networks for Natural Language Processing](https://arxiv.org/pdf/1
 
 ## Todo
 
+- Implements DMN+ ([Dynamic Memory Networks for Visual and Textual Question Answering](https://arxiv.org/pdf/1603.01417.pdf) (2016) by C Xiong)
 
 
 
@@ -39,17 +40,17 @@ data:
 
 model:
   use_pretrained: true  (true or false)
-  embed_dim: 200  (if use_pretrained: only available 50, 100, 200, 300)
+  embed_dim: 50  (if use_pretrained: only available 50, 100, 200, 300)
   encoder_type: UNI  ('UNI', 'BI')
   cell_type: GRU  (LSTM, GRU, LAYER_NORM_LSTM, NAS)
-  num_layers: 3 
-  num_units: 256
+  num_layers: 1
+  num_units: 64
   memory_hob: 3
-  dropout: 0.8
+  dropout: 0.0
 
 train:
-  batch_size: 128
-  learning_rate: 0.0001
+  batch_size: 32
+  learning_rate: 0.0003
   train_steps: 100000
   model_dir: 'logs/bAbi_task1'
   save_checkpoints_steps: 1000
