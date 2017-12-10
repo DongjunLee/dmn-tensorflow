@@ -65,9 +65,12 @@ class DMN:
             self._build_optimizer()
 
     def _build_input_module(self):
+        encoder = self._build_encoder()
+
         with tf.variable_scope("input-module") as scope:
             print("input embedding:", self.embedding_input)
-            self.input_encoder_outputs, _ = self._build_encoder(self.embedding_input, self.input_length)
+            self.input_encoder_outputs, _ = encoder.build()(
+                    self.embedding_input, self.input_length, scope="encoder")
             print("input encoding: ", self.input_encoder_outputs)
 
             self.facts = []
@@ -85,22 +88,24 @@ class DMN:
             self.facts = tf.unstack(tf.transpose(facts_packed, [1, 0, 2]), num=Config.data.max_input_mask_length)
             print("facts:", self.facts)
 
+        with tf.variable_scope("input-module") as scope:
             scope.reuse_variables()
-
             print("question embedding:", self.embedding_question)
-            _, self.question = self._build_encoder(self.embedding_question, self.question_length)
+
+            # cells = encoder.create_rnn_cells()
+            _, self.question = encoder.build()(
+                    self.embedding_question, self.question_length, scope="encoder")
             self.question = self.question[0]
             print("question encoding: ", self.question)
 
-    def _build_encoder(self, input_vector, sequence_length):
+
+    def _build_encoder(self):
         return Encoder(
                     encoder_type=Config.model.encoder_type,
                     num_layers=Config.model.num_layers,
-                    input_vector=input_vector,
-                    sequence_length=sequence_length,
                     cell_type=Config.model.cell_type,
                     num_units=Config.model.num_units,
-                    dropout=Config.model.dropout).build()
+                    dropout=Config.model.dropout)
 
     def _build_episodic_memory(self):
         with tf.variable_scope('episodic-memory-module') as scope:
@@ -108,13 +113,15 @@ class DMN:
             print("m0:", memory)
 
             episode = Episode(Config.model.num_units)
-
             rnn = tf.contrib.rnn.GRUCell(Config.model.num_units)
 
             for _ in range(Config.model.memory_hob):
-                updated_memory = episode.update(self.facts, tf.transpose(memory), tf.transpose(self.question))
+                updated_memory = episode.update(self.facts,
+                        tf.transpose(memory, name="m"),
+                        tf.transpose(self.question, name="q"))
                 print("updated_memory:", updated_memory, memory)
                 memory, _ = rnn(updated_memory, memory, scope="memory_rnn")
+                scope.reuse_variables()
             self.last_memory = memory
 
 
@@ -124,11 +131,8 @@ class DMN:
             self.logits = tf.matmul(self.last_memory, w_a)
             print("logits:", self.logits)
 
-
         # a = tf.identity(self.last_memory)
-
         # rnn = tf.contrib.rnn.GRUCell(Config.model.num_units)
-
         # y = tf.nn.softmax(tf.matmul(w_a, a))
         # a = rnn(tf.concat([y, self.question], 0), a)
 
