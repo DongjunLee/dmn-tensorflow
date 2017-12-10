@@ -1,6 +1,6 @@
 data:
   base_path: 'data/'
-  task_path: 'en-10/'
+  task_path: 'en/'
   task_id: 1
   PAD_ID: 0
 
@@ -13,6 +13,7 @@ model:
   num_units: 16
   memory_hob: 2
   dropout: 0.5
+  reg_scale: 0.001
 
 train:
   batch_size: 2

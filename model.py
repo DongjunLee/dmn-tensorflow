@@ -121,17 +121,22 @@ class DMN:
 
 
     def _build_answer_decoder(self):
-        with tf.variable_scope('answer-module') as scope:
-            w_a = tf.get_variable("w_a", [Config.model.num_units, Config.data.vocab_size])
+        with tf.variable_scope('answer-module'):
+            w_a = tf.get_variable(
+                    "w_a", [Config.model.num_units, Config.data.vocab_size],
+                    regularizer=tf.contrib.layers.l2_regularizer(Config.model.reg_scale))
             self.logits = tf.matmul(self.last_memory, w_a)
+        self.predictions = tf.argmax(self.logits, axis=1)
 
     def _build_loss(self):
-        self.loss = tf.losses.sparse_softmax_cross_entropy(
-                self.targets,
-                self.logits,
-                scope="loss")
+        with tf.variable_scope('loss'):
+            cross_entropy = tf.losses.sparse_softmax_cross_entropy(
+                    self.targets,
+                    self.logits,
+                    scope="cross-entropy")
+            reg_term = tf.reduce_sum(tf.get_collection(tf.GraphKeys.REGULARIZATION_LOSSES))
 
-        self.predictions = tf.argmax(self.logits, axis=1)
+            self.loss = tf.add(cross_entropy, reg_term)
 
     def _build_optimizer(self):
         self.train_op = layers.optimize_loss(

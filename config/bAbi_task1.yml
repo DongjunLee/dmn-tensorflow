@@ -13,9 +13,10 @@ model:
   num_units: 64
   memory_hob: 3
   dropout: 0.0
+  reg_scale: 0.001
 
 train:
-  batch_size: 32
+  batch_size: 64
   learning_rate: 0.0003
   train_steps: 100000
   model_dir: 'logs/bAbi_task1'

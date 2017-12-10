@@ -1,4 +1,5 @@
 
+from hbconfig import Config
 import tensorflow as tf
 
 
@@ -126,9 +127,13 @@ class Episode:
 class AttentionGate:
 
     def __init__(self, hidden_size=4):
-        self.w1 = tf.get_variable("w1", [hidden_size, 7*hidden_size])
+        self.w1 = tf.get_variable(
+                "w1", [hidden_size, 7*hidden_size],
+                regularizer=tf.contrib.layers.l2_regularizer(Config.model.reg_scale))
         self.b1 = tf.get_variable("b1", [hidden_size, 1])
-        self.w2 = tf.get_variable("w2", [1, hidden_size])
+        self.w2 = tf.get_variable(
+                "w2", [1, hidden_size],
+                regularizer=tf.contrib.layers.l2_regularizer(Config.model.reg_scale))
         self.b2 = tf.get_variable("b2", [1, 1])
 
     def score(self, c_t, m_t, q_t):
