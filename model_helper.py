@@ -118,8 +118,6 @@ class Episode:
         with tf.variable_scope('memory-update') as scope:
             for fact in c:
                 g = self.gate.score(tf.transpose(fact, name="c"), m_t, q_t)
-                print("g:", g)
-                print("h:", h)
                 h = g * self.rnn(fact, h, scope="episode_rnn")[0] + (1 - g) * h
                 scope.reuse_variables()
         return h
