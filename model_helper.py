@@ -29,16 +29,16 @@ class Encoder:
         self.dropout = dropout
         self.dtype = dtype
 
-    def build(self):
+    def build(self, input_vector, sequence_length, scope=None):
         if self.encoder_type == self.UNI_ENCODER_TYPE:
             self.cells = self._create_rnn_cells()
 
-            return self.unidirectional_rnn
+            return self.unidirectional_rnn(input_vector, sequence_length, scope=scope)
         elif self.encoder_type == self.BI_ENCODER_TYPE:
             self.cells_fw = self._create_rnn_cells(is_list=True)
             self.cells_bw = self._create_rnn_cells(is_list=True)
 
-            return self.bidirectional_rnn
+            return self.bidirectional_rnn(input_vector, sequence_length, scope=scope)
         else:
             raise ValueError(f"Unknown encoder_type {encoder_type}")
 

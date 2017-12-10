@@ -74,26 +74,25 @@ class DMN:
         encoder = self._build_encoder()
 
         with tf.variable_scope("input-module") as scope:
-            self.input_encoder_outputs, _ = encoder.build()(
+            self.input_encoder_outputs, _ = encoder.build(
                     self.embedding_input, self.input_length, scope="encoder")
 
             self.facts = []
             max_mask_length = tf.shape(self.input_mask)[1]
             for i in range(Config.model.batch_size):
-                input_mask = tf.identity(self.input_mask[i])
-                mask_lengths = tf.reduce_sum(tf.to_int32(tf.not_equal(input_mask, Config.data.PAD_ID)), 0)
-                input_mask = tf.boolean_mask(input_mask, tf.sequence_mask(mask_lengths, max_mask_length))
-                input_mask = tf.reshape(input_mask, [-1, 1])
+                mask_lengths = tf.reduce_sum(tf.to_int32(tf.not_equal(self.input_mask[i], Config.data.PAD_ID)), 0)
+                input_mask = tf.boolean_mask(self.input_mask[i], tf.sequence_mask(mask_lengths, max_mask_length))
 
                 padding = tf.zeros(tf.stack([max_mask_length - mask_lengths, Config.model.num_units]))
-                self.facts.append(tf.concat([tf.gather_nd(self.input_encoder_outputs[i], input_mask), padding], 0))
+                self.facts.append(tf.concat(
+                    [tf.gather_nd(self.input_encoder_outputs[i], tf.reshape(input_mask, [-1, 1])), padding], 0))
 
-            facts_packed = tf.stack(self.facts)
-            self.facts = tf.unstack(tf.transpose(facts_packed, [1, 0, 2]), num=Config.data.max_input_mask_length)
+            facts_stacked = tf.stack(self.facts)
+            self.facts = tf.unstack(tf.transpose(facts_stacked, [1, 0, 2]), num=Config.data.max_input_mask_length)
 
         with tf.variable_scope("input-module") as scope:
             scope.reuse_variables()
-            _, self.question = encoder.build()(
+            _, self.question = encoder.build(
                     self.embedding_question, self.question_length, scope="encoder")
             self.question = self.question[0]
 
@@ -138,7 +137,7 @@ class DMN:
     def _build_optimizer(self):
         self.train_op = layers.optimize_loss(
             self.loss, tf.train.get_global_step(),
-            optimizer='Adam',
+            optimizer=Config.train.get('optimizer', 'Adam'),
             learning_rate=Config.train.learning_rate,
-            summaries=['loss'],
+            summaries=['loss', 'gradients', 'learning_rate'],
             name="train_op")
