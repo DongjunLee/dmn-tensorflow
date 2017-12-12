@@ -10,6 +10,10 @@ __all__ = [
 
 
 class Encoder:
+    """Encoder class is Mutil-layer Recurrent Neural Networks
+
+    The 'Encoder' usually encode the sequential input vector.
+    """
 
     UNI_ENCODER_TYPE = "UNI"
     BI_ENCODER_TYPE = "BI"
@@ -22,6 +26,21 @@ class Encoder:
     def __init__(self, encoder_type="UNI", num_layers=4,
                  cell_type="GRU", num_units=512, dropout=0.8,
                  dtype=tf.float32):
+        """Contructs an 'Encoder' instance.
+
+        * Args:
+            encoder_type: rnn encoder_type (UNI, BI)
+            num_layers: number of RNN cell composed sequentially of multiple simple cells.
+            input_vector: RNN Input vectors.
+            sequence_length: batch element's sequence length
+            cell_type: RNN cell types (LSTM, GRU, LAYER_NORM_LSTM, NAS)
+            num_units: the number of units in cell
+            dropout: set prob operator adding dropout to inputs of the given cell.
+            dtype: the dtype of the input
+
+        * Returns:
+            Encoder instance
+        """
 
         self.encoder_type = encoder_type
         self.num_layers = num_layers
@@ -66,6 +85,15 @@ class Encoder:
         return outputs, encoder_final_state
 
     def _create_rnn_cells(self, is_list=False):
+        """Contructs stacked_rnn with num_layers
+
+        * Args:
+            is_list: flags for stack bidirectional. True=stack bidirectional, False=unidirectional
+
+        * Returns:
+            stacked_rnn
+        """
+
         stacked_rnn = []
         for _ in range(self.num_layers):
             single_cell = self._rnn_single_cell()
@@ -79,6 +107,8 @@ class Encoder:
                     state_is_tuple=True)
 
     def _rnn_single_cell(self):
+        """Contructs rnn single_cell"""
+
         if self.cell_type == self.RNN_GRU_CELL:
             single_cell = tf.contrib.rnn.GRUCell(
                 self.num_units,
@@ -108,12 +138,23 @@ class Encoder:
 
 
 class Episode:
+    """Episode class is used update memory in in Episodic Memory Module"""
 
     def __init__(self, num_units):
         self.gate = AttentionGate(hidden_size=num_units)
         self.rnn = tf.contrib.rnn.GRUCell(num_units)
 
     def update(self, c, m_t, q_t):
+        """Update memory with attention mechanism
+
+        * Args:
+            c : encoded raw text and stacked by each sentence
+            m : previous memory
+            q : encoded question last state
+
+        * Returns:
+            h : updated memory
+        """
         h = tf.zeros_like(c[0])
 
         with tf.variable_scope('memory-update') as scope:
@@ -125,6 +166,7 @@ class Episode:
 
 
 class AttentionGate:
+    """AttentionGate class is simple two-layer feed forward neural network with Score function."""
 
     def __init__(self, hidden_size=4):
         self.w1 = tf.get_variable(
@@ -137,9 +179,15 @@ class AttentionGate:
         self.b2 = tf.get_variable("b2", [1, 1])
 
     def score(self, c_t, m_t, q_t):
+        """For captures a variety of similarities between input(c), memory(m) and question(q)
+
+        * Args:
+            c_t : transpose of one fact (encoded sentence's last state)
+            m_t : transpose of previous memory
+            q_t : transpose of encoded question
+        """
 
         with tf.variable_scope('attention_gate'):
-            # for captures a variety of similarities between input(c), memory(m) and question(q)
             z = tf.concat([c_t, m_t, q_t, c_t*q_t, c_t*m_t, (c_t-q_t)**2, (c_t-m_t)**2], 0)
 
             tf.nn.tanh(tf.matmul(self.w1, z) + self.b1)
