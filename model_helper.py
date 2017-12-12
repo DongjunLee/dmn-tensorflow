@@ -149,8 +149,11 @@ class Episode:
 
         * Args:
             c : encoded raw text and stacked by each sentence
-            m : previous memory
-            q : encoded question last state
+                shape: fact_count x [batch_size, num_units]
+            m_t : previous memory
+                shape: [num_units, batch_size]
+            q_t : encoded question last state
+                shape: [num_units, batch_size]
 
         * Returns:
             h : updated memory
@@ -160,6 +163,7 @@ class Episode:
         with tf.variable_scope('memory-update') as scope:
             for fact in c:
                 g = self.gate.score(tf.transpose(fact, name="c"), m_t, q_t)
+                print("g: ", g)
                 h = g * self.rnn(fact, h, scope="episode_rnn")[0] + (1 - g) * h
                 scope.reuse_variables()
         return h
@@ -183,8 +187,15 @@ class AttentionGate:
 
         * Args:
             c_t : transpose of one fact (encoded sentence's last state)
+                  shape: [num_units, batch_size]
             m_t : transpose of previous memory
+                  shape: [num_units, batch_size]
             q_t : transpose of encoded question
+                  shape: [num_units, batch_size]
+
+        * Returns:
+            gate score
+            shape: [batch_size, 1]
         """
 
         with tf.variable_scope('attention_gate'):
