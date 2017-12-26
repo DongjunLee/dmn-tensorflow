@@ -34,32 +34,35 @@ example: bAbi_task1.yml
 ```yml
 data:
   base_path: 'data/'
-  task_path: 'en/'
+  task_path: 'en-10k/'
   task_id: 1
   PAD_ID: 0
 
 model:
-  use_pretrained: true  (true or false)
-  embed_dim: 50  (if use_pretrained: only available 50, 100, 200, 300)
-  encoder_type: UNI  ('UNI', 'BI')
-  cell_type: GRU  (LSTM, GRU, LAYER_NORM_LSTM, NAS)
+  batch_size: 16
+  use_pretrained: true             # (true or false)
+  embed_dim: 50                    # if use_pretrained: only available 50, 100, 200, 300
+  encoder_type: UNI                # uni, bi
+  cell_type: GRU                   # lstm, gru, layer_norm_lstm, nas
   num_layers: 1
-  num_units: 64
+  num_units: 32
   memory_hob: 3
   dropout: 0.0
+  reg_scale: 0.001
 
 train:
-  batch_size: 32
-  learning_rate: 0.0003
+  learning_rate: 0.0001
+  optimizer: 'Adam'                # Adagrad, Adam, Ftrl, Momentum, RMSProp, SGD
+
   train_steps: 100000
   model_dir: 'logs/bAbi_task1'
+
   save_checkpoints_steps: 1000
   check_hook_n_iter: 1000
   min_eval_frequency: 1000
-  optimizer: 'Adam'  ('Adagrad', 'Adam', 'Ftrl', 'Momentum', 'RMSProp', 'SGD')
 
-eval:
-  batch_size: -1   (Using all test data)
+  print_verbose: False
+  debug: False
 ```
 
 

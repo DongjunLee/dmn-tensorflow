@@ -5,6 +5,7 @@ data:
   PAD_ID: 0
 
 model:
+  batch_size: 2
   use_pretrained: false
   embed_dim: 8
   encoder_type: UNI
@@ -16,14 +17,15 @@ model:
   reg_scale: 0.001
 
 train:
-  batch_size: 2
   learning_rate: 0.001
-  train_steps: 10000
-  model_dir: 'logs/check_tiny'
-  save_checkpoints_steps: 1000
-  check_hook_n_iter: 10
-  min_eval_frequency: 10
   optimizer: 'Adam'
 
-eval:
-  batch_size: -1
+  train_steps: 10000
+  model_dir: 'logs/check_tiny'
+
+  save_checkpoints_steps: 1000
+  check_hook_n_iter: 100
+  min_eval_frequency: 100
+
+  print_verbose: False
+  debug: False
