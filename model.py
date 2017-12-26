@@ -21,7 +21,6 @@ class DMN:
         self.mode = mode
         self.params = params
 
-        self._set_batch_size(mode)
         self._init_placeholder(features, labels)
         self.build_graph()
 
@@ -41,23 +40,17 @@ class DMN:
                 }
             )
 
-    def _set_batch_size(self, mode):
-        if mode == tf.estimator.ModeKeys.EVAL:
-            Config.model.batch_size = Config.eval.batch_size
-        else:
-            Config.model.batch_size = Config.train.batch_size
-
     def _init_placeholder(self, features, labels):
         self.input_data = features
         if type(features) == dict:
             self.embedding_input = features["input_data"]
-
             self.input_mask = features["input_data_mask"]
             self.input_length = tf.reduce_max(self.input_mask, 1)
             self.embedding_question = features["question_data"]
             self.question_length = tf.map_fn(lambda x: tf.shape(x)[0],
                                              self.embedding_question,
                                              dtype=tf.int32)
+
         self.targets = labels
 
     def build_graph(self):
@@ -78,17 +71,21 @@ class DMN:
 
             with tf.variable_scope("facts") as scope:
                 self.facts = []
+
+                batch_size = tf.shape(self.input_mask)[0]
                 max_mask_length = tf.shape(self.input_mask)[1]
-                for i in range(Config.model.batch_size):
-                    mask_lengths = tf.reduce_sum(tf.to_int32(tf.not_equal(self.input_mask[i], Config.data.PAD_ID)), 0)
+
+                def get_encoded_fact(i):
+                    mask_lengths = tf.reduce_sum(tf.to_int32(tf.not_equal(self.input_mask[i], Config.data.PAD_ID)), axis=0)
                     input_mask = tf.boolean_mask(self.input_mask[i], tf.sequence_mask(mask_lengths, max_mask_length))
 
+                    encoded_facts = tf.gather_nd(self.input_encoder_outputs[i], tf.reshape(input_mask, [-1, 1]))
                     padding = tf.zeros(tf.stack([max_mask_length - mask_lengths, Config.model.num_units]))
-                    self.facts.append(tf.concat(
-                        [tf.gather_nd(self.input_encoder_outputs[i], tf.reshape(input_mask, [-1, 1])), padding], 0))
+                    return tf.concat([encoded_facts, padding], 0)
 
-                facts_stacked = tf.stack(self.facts)
+                facts_stacked = tf.map_fn(get_encoded_fact, tf.range(start=0, limit=batch_size), dtype=self.dtype)
                 self.facts = tf.unstack(tf.transpose(facts_stacked, [1, 0, 2]), num=Config.data.max_input_mask_length)
+                # max_input_mask_length x [batch_size, num_units]
 
         with tf.variable_scope("input-module") as scope:
             scope.reuse_variables()
