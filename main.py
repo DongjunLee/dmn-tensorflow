@@ -9,14 +9,14 @@ from tensorflow.python import debug as tf_debug
 
 from data_loader import DataLoader
 import hook
-from model import DMN
+from model import Model
 
 
 def experiment_fn(run_config, params):
 
-    dmn_model = DMN()
+    model = Model()
     estimator = tf.estimator.Estimator(
-            model_fn=dmn_model.model_fn,
+            model_fn=model.model_fn,
             model_dir=Config.train.model_dir,
             params=params,
             config=run_config)

@@ -1,15 +1,15 @@
 data:
   base_path: 'data/'
-  task_path: 'en/'
+  task_path: 'en-10/'
   task_id: 1
   PAD_ID: 0
 
 model:
   batch_size: 2
-  use_pretrained: false
-  embed_dim: 8
-  encoder_type: UNI
-  cell_type: GRU
+  use_pretrained: false               # (true or false)
+  embed_dim: 8                        # if use_pretrained: only available 50, 100, 200, 300
+  encoder_type: uni                   # uni, bi
+  cell_type: gru                      # lstm, gru, layer_norm_lstm, nas
   num_layers: 2
   num_units: 16
   memory_hob: 2
@@ -18,7 +18,7 @@ model:
 
 train:
   learning_rate: 0.001
-  optimizer: 'Adam'
+  optimizer: 'Adam'                  # Adagrad, Adam, Ftrl, Momentum, RMSProp, SGD
 
   train_steps: 10000
   model_dir: 'logs/check_tiny'
