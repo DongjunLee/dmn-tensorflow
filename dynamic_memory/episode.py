@@ -66,7 +66,6 @@ class AttentionGate:
         with tf.variable_scope('attention_gate'):
             z = tf.concat([c_t, m_t, q_t, c_t*q_t, c_t*m_t, (c_t-q_t)**2, (c_t-m_t)**2], 0)
 
-            tf.nn.tanh(tf.matmul(self.w1, z) + self.b1)
             o1 = tf.nn.tanh(tf.matmul(self.w1, z) + self.b1)
             o2 = tf.nn.sigmoid(tf.matmul(self.w2, o1) + self.b2)
             return tf.transpose(o2)
