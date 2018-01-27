@@ -123,9 +123,9 @@ python main.py --config bAbi_task1 --mode train_and_evaluate
 ## Reference
 
 - [Implementing Dynamic memory networks](https://yerevann.github.io/2016/02/05/implementing-dynamic-memory-networks/)
-- [Ask Me Anything:
-Dynamic Memory Networks for Natural Language Processing](https://arxiv.org/pdf/1506.07285.pdf) (2015) by A Kumar
-
+- [arXiv - Ask Me Anything:
+Dynamic Memory Networks for Natural Language Processing](https://arxiv.org/abs/1506.07285) (2015. 6) by A Kumar
+- [arXiv - Dynamic Memory Networks for Visual and Textual Question Answering](https://arxiv.org/abs/1603.01417) (2016. 3) by C Xiong
 
 ## Author
 
