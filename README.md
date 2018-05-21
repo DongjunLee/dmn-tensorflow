@@ -9,7 +9,7 @@ Dynamic Memory Networks for Natural Language Processing](https://arxiv.org/pdf/1
 ## Requirements
 
 - Python 3.6
-- TensorFlow 1.4
+- TensorFlow 1.8
 - [hb-config](https://github.com/hb-research/hb-config) (Singleton Config)
 - nltk (tokenizer and blue score)
 - tqdm (progress bar)
