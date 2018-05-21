@@ -1,6 +1,6 @@
 data:
   base_path: 'data/'
-  task_path: 'en-10k/'
+  task_path: 'en-10/'
   task_id: 1
   PAD_ID: 0
 

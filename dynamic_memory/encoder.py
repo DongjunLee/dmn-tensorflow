@@ -9,11 +9,11 @@ class Encoder:
     The 'Encoder' usually encode the sequential input vector.
     """
 
-    UNI_ENCODER_TYPE = "uni"
-    BI_ENCODER_TYPE = "bi"
+    UNI_ENCODER_TYPE = "UNI"
+    BI_ENCODER_TYPE = "BI"
 
-    RNN_GRU_CELL = "gru"
-    RNN_LSTM_CELL = "lstm"
+    RNN_GRU_CELL = "GRU"
+    RNN_LSTM_CELL = "LSTM"
     RNN_LAYER_NORM_LSTM_CELL = "layer_norm_lstm"
     RNN_NAS_CELL = "nas"
 
